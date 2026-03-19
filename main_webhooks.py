@@ -13,8 +13,8 @@ load_dotenv()
 
 TOKEN = os.getenv("BOT_TOKEN")
 ADMIN_USERNAME = os.getenv("ADMIN_USERNAME")
-BASE_WEBHOOK_URL = os.getenv("BASE_WEBHOOK_URL")
-
+# BASE_WEBHOOK_URL = os.getenv("BASE_WEBHOOK_URL")
+BASE_WEBHOOK_URL = "https://booking-bot-js5f.onrender.com"
 WEBHOOK_PATH = "/webhook"
 WEB_SERVER_HOST = "0.0.0.0"
 WEB_SERVER_PORT = int(os.getenv("PORT", 8080))
