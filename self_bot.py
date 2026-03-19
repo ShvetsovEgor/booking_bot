@@ -110,7 +110,7 @@ async def main():
                     if is_free(current_dow, start_t, end_t):
                         final_results[current_date].append(start_t)
 
-        response_lines = [f"{d}: Я могу в {', '.join(t)}" for d, t in final_results.items() if t]
+        response_lines = [f"{d} - {', '.join(t)}" for d, t in final_results.items() if t]
         if response_lines:
             await event.reply("\n".join(response_lines))
             logger.info(f"Снайперский ответ для @{sender_username} отправлен!")
