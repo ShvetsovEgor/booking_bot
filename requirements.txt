@@ -18,4 +18,3 @@ typing-inspection==0.4.2
 yarl==1.23.0
 python-dotenv==1.0.1
 Telethon==1.35.0
-cryptg==0.4.0
