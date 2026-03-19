@@ -8,85 +8,69 @@ from dotenv import load_dotenv
 from aiogram import Bot, Dispatcher, types, F, Router
 from aiogram.webhook.aiohttp_server import SimpleRequestHandler, setup_application
 
-# Загружаем переменные из .env (если файл есть рядом)
+# Загружаем настройки из .env или переменных окружения Render
 load_dotenv()
 
-# --- НАСТРОЙКИ (Private Variables) ---
 TOKEN = os.getenv("BOT_TOKEN")
 ADMIN_USERNAME = os.getenv("ADMIN_USERNAME")
 BASE_WEBHOOK_URL = os.getenv("BASE_WEBHOOK_URL")
 
 WEBHOOK_PATH = "/webhook"
-# Для Render/облака используем 0.0.0.0 и порт из переменной PORT
 WEB_SERVER_HOST = "0.0.0.0"
 WEB_SERVER_PORT = int(os.getenv("PORT", 8080))
 
-# Твоя занятость (когда ты ЗАНЯТ)
+# Твое актуальное расписание занятости (когда ты ЗАНЯТ)
 BUSY_SCHEDULE = {
-    0: [(16, 0, 17, 30)],
-    1: [],
-    2: [(9, 0, 15, 50)],
-    3: [(9, 0, 10, 30), (14, 20, 20, 50)],
-    4: [(12, 40, 15, 50)],
-    5: [(10, 40, 12, 10), (14, 20, 15, 40)],
-    6: []
+    0: [(16, 0, 17, 30)],  # Пн
+    1: [],  # Вт
+    2: [(9, 0, 15, 50)],  # Ср
+    3: [(9, 0, 10, 30), (14, 20, 20, 50)],  # Чт
+    4: [(12, 40, 15, 50)],  # Пт
+    5: [(10, 40, 12, 10), (14, 20, 15, 40)],  # Сб
+    6: []  # Вс
 }
 VACANT_KEYWORDS = ["гид", "ведущий", "нужен"]
 
-# --- ЛОГИКА ПРОВЕРКИ ---
+
+# --- ЛОГИКА ---
 def is_free(day_of_week, start_time_str, end_time_str=None):
     try:
         sh, sm = map(int, start_time_str.split(':'))
         slot_start = sh * 60 + sm
-
-        if end_time_str:
-            eh, em = map(int, end_time_str.split(':'))
-            slot_end = eh * 60 + em
-        else:
-            slot_end = slot_start + 90
+        slot_end = slot_start + 90 if not end_time_str else (lambda t: int(t[0]) * 60 + int(t[1]))(
+            end_time_str.split(':'))
 
         for (bsh, bsm, beh, bem) in BUSY_SCHEDULE.get(day_of_week, []):
-            busy_start = bsh * 60 + bsm
-            busy_end = beh * 60 + bem
+            busy_start, busy_end = bsh * 60 + bsm, beh * 60 + bem
+            overlap = min(slot_end, busy_end) - max(slot_start, busy_start)
 
-            overlap_start = max(slot_start, busy_start)
-            overlap_end = min(slot_end, busy_end)
-
-            if overlap_start < overlap_end:
-                overlap_duration = overlap_end - overlap_start
-                if overlap_duration > 10:
-                    return False
-                else:
-                    logging.info(f"Допущен нахлест {overlap_duration} мин. на слоте {start_time_str}")
-
+            if overlap > 10:  # Если нахлест больше 10 минут
+                return False
         return True
-    except Exception as e:
-        logging.error(f"Ошибка в расчете времени: {e}")
+    except:
         return False
 
-# --- ОБРАБОТЧИК ---
+
 router = Router()
 
+
 @router.message(F.chat.type.in_({"group", "supergroup"}), F.from_user.username == ADMIN_USERNAME)
-async def auto_booking(message: types.Message):
+async def handle_admin_message(message: types.Message):
     text = message.text or message.caption or ""
     lines = text.split('\n')
-    booking_results = {}
+    results = {}
     current_date, current_dow = None, None
-    is_excursion_list = False
+    is_list = False
 
     for line in lines:
         clean = line.strip().lower()
         d_match = re.search(r'(\d{2})\.(\d{2})', line)
         if d_match:
-            is_excursion_list = True
+            is_list = True
             current_date = d_match.group(0)
-            day, month = map(int, d_match.groups())
             try:
-                # 2026 год, как в твоем исходнике
-                current_dow = datetime(2026, month, day).weekday()
-                if current_date not in booking_results:
-                    booking_results[current_date] = []
+                current_dow = datetime(2026, int(d_match.group(2)), int(d_match.group(1))).weekday()
+                results[current_date] = []
             except:
                 current_dow = None
             continue
@@ -94,40 +78,44 @@ async def auto_booking(message: types.Message):
         if current_dow is not None and current_date:
             t_match = re.search(r'(\d{2}:\d{2})(?:[–-]\s?(\d{2}:\d{2}))?', line)
             if t_match:
-                is_excursion_list = True
-                is_vacant = any(word in clean for word in VACANT_KEYWORDS)
-                if is_vacant:
+                is_list = True
+                if any(w in clean for w in VACANT_KEYWORDS):
                     start, end = t_match.group(1), t_match.group(2)
                     if is_free(current_dow, start, end):
-                        booking_results[current_date].append(start)
+                        results[current_date].append(start)
 
-    resp = [f"{d}: Я могу в {', '.join(s)}" for d, s in booking_results.items() if s]
-
+    resp = [f"{d}: Я могу в {', '.join(s)}" for d, s in results.items() if s]
     if resp:
         await message.reply("\n".join(resp))
-    elif is_excursion_list:
+    elif is_list:
         await message.reply("не могу")
 
-# --- ЗАПУСК WEBHOOK ---
+
+# Эндпоинт для cron-job.org (чтобы Render не спал)
+async def handle_ping(request):
+    return web.Response(text="Bot is active")
+
+
 async def on_startup(bot: Bot):
     await bot.set_webhook(f"{BASE_WEBHOOK_URL}{WEBHOOK_PATH}")
 
-def main():
-    if not TOKEN:
-        exit("Error: BOT_TOKEN variable not found.")
 
+def main():
     bot = Bot(token=TOKEN)
     dp = Dispatcher()
     dp.include_router(router)
     dp.startup.register(on_startup)
 
     app = web.Application()
-    webhook_requests_handler = SimpleRequestHandler(dispatcher=dp, bot=bot)
-    webhook_requests_handler.register(app, path=WEBHOOK_PATH)
+    app.router.add_get("/", handle_ping)  # Путь для пинга
+
+    handler = SimpleRequestHandler(dispatcher=dp, bot=bot)
+    handler.register(app, path=WEBHOOK_PATH)
     setup_application(app, dp, bot=bot)
 
     logging.basicConfig(level=logging.INFO)
     web.run_app(app, host=WEB_SERVER_HOST, port=WEB_SERVER_PORT)
+
 
 if __name__ == "__main__":
     main()
