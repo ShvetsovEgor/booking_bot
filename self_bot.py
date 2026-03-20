@@ -22,7 +22,6 @@ TARGET_CHAT_ID = os.getenv("TARGET_CHAT_ID")
 # ADMIN_USERNAME = "traveltechinnopolis"
 # TARGET_CHAT_ID = -1003885735770
 
-# Твое расписание занятости
 BUSY_SCHEDULE = {
     0: [(16, 0, 17, 30)], 1: [], 2: [(9, 0, 15, 50)],
     3: [(9, 0, 10, 30), (14, 20, 20, 50)], 4: [(12, 40, 15, 50)],
