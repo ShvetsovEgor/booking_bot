@@ -15,8 +15,8 @@ load_dotenv()
 API_ID = 37948236
 API_HASH = '5ecb24535da6140dd138ad9a2dc226aa'
 SESSION_STRING = os.getenv("TELEGRAM_SESSION")
-ADMIN_USERNAME = os.getenv("ADMIN_USERNAME")
-TARGET_CHAT_ID = os.getenv("TARGET_CHAT_ID")
+# ADMIN_USERNAME = os.getenv("ADMIN_USERNAME")
+# TARGET_CHAT_ID = os.getenv("TARGET_CHAT_ID")
 TARGET_CHAT_ID = "-1003885735770"
 ADMIN_USERNAME = "traveltechinnopolis"
 # Твое расписание занятости
