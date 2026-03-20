@@ -17,7 +17,7 @@ API_HASH = '5ecb24535da6140dd138ad9a2dc226aa'
 SESSION_STRING = os.getenv("TELEGRAM_SESSION")
 # ВАЖНО: Ник админа, которого слушаем
 ADMIN_USERNAME = os.getenv("ADMIN_USERNAME")
-TARGET_CHAT_ID = os.getenv("TARGET_CHAT_ID")
+TARGET_CHAT_ID = int(os.getenv("TARGET_CHAT_ID"))
 
 # ADMIN_USERNAME = "traveltechinnopolis"
 # TARGET_CHAT_ID = -1003885735770
@@ -76,7 +76,10 @@ async def main():
     # Запускаем клиент один раз
     await client.start()
     logger.info("Подключено! Проверяю доступ к чату...")
+    # ПРИНУДИТЕЛЬНЫЙ ПОИСК: листаем чаты, пока не найдем нужный ID
+    async for dialog in client.iter_dialogs(limit=100):
 
+        logger.info(f"Чат найден: {dialog.name}. {dialog.id}")
     try:
         entity = await client.get_entity(TARGET_CHAT_ID)
         logger.info(f"Чат найден: {entity.title}. Снайпер в засаде!")
